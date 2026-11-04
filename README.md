@@ -60,6 +60,7 @@ Alle Wörter stehen in [`vocab.js`](vocab.js). Ein neuer Raum ist einfach ein we
 Die aktuelle Version steht unten in den ⚙️ Einstellungen. Bei Änderungen `APP_VERSION` in `app.js` erhöhen –
 dadurch holen sich auch installierte Apps die neuen Dateien.
 
+- **1.3.2** – Lernkarten geben jetzt auch bis zu 3 Sterne (vorher immer nur 1)
 - **1.3.1** – Updates kommen zuverlässig an (kein veralteter Zwischenspeicher mehr), Knopf „Nach neuer Version suchen“
 - **1.3.0** – Versionsnummer in den Einstellungen
 - **1.2.0** – Vorlesen auf Deutsch und Englisch mit passender Stimme, Stimmenauswahl

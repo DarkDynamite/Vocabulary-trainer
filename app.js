@@ -1,7 +1,7 @@
 'use strict';
 
 // Bei jeder Änderung erhöhen – wird in den Einstellungen angezeigt und erneuert den Offline-Cache.
-const APP_VERSION = '1.3.1';
+const APP_VERSION = '1.3.2';
 const APP_DATE = '04.11.2026';
 
 /* ---------- Helfer ---------- */
@@ -439,8 +439,8 @@ function finish() {
   const good = ids.filter((id) => s.first[id]).length;
   const tot = ids.length;
   const ratio = tot ? good / tot : 0;
-  // Lernkarten = Selbsteinschätzung, daher immer 1 Stern fürs Durcharbeiten
-  const stars = s.mode === 'cards' ? 1 : ratio >= 0.9 ? 3 : ratio >= 0.7 ? 2 : ratio >= 0.5 ? 1 : 0;
+  // Gleiche Regel für alle Modi (auch Lernkarten): ab 90 % = 3, ab 70 % = 2, ab 50 % = 1 Stern
+  const stars = ratio >= 0.9 ? 3 : ratio >= 0.7 ? 2 : ratio >= 0.5 ? 1 : 0;
   S.stars += stars;
   S.rounds++;
   touchDay();
