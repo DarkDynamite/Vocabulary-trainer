@@ -34,6 +34,15 @@ h3 { font-size: 1rem; margin: 0 0 .6em; }
 small { color: var(--muted); }
 .muted { color: var(--muted); font-size: .95rem; }
 button { font: inherit; color: inherit; cursor: pointer; }
+button, a, .flip, .toggle { touch-action: manipulation; transition: transform .1s ease, filter .1s ease, box-shadow .1s ease, background .2s; }
+/* Druck-Feedback (per JS-Klasse .pressed, Fallback :active) */
+.pressed:not(:disabled), button:active:not(:disabled), a:active {
+  transform: translateY(3px) scale(.97);
+  filter: brightness(.92);
+  box-shadow: 0 1px 0 rgba(43, 45, 66, .12) !important;
+}
+.flip.pressed { transform: scale(.98); box-shadow: none !important; }
+.logo.pressed, .logo:active { box-shadow: none !important; opacity: .7; }
 
 /* Topbar */
 .topbar {

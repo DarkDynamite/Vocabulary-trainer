@@ -602,6 +602,24 @@ document.addEventListener('click', (e) => {
 });
 window.addEventListener('hashchange', route);
 
+/* Touch-Feedback: Elemente sichtbar "eindrücken", auch auf iOS/Android */
+const PRESSABLE = 'button, a, .flip, .toggle';
+let pressedEl = null, pressedAt = 0;
+function release(el) { if (el) el.classList.remove('pressed'); if (pressedEl === el) pressedEl = null; }
+document.addEventListener('pointerdown', (e) => {
+  const el = e.target.closest(PRESSABLE);
+  if (!el || el.disabled) return;
+  release(pressedEl);
+  pressedEl = el; pressedAt = Date.now();
+  el.classList.add('pressed');
+  if (e.pointerType === 'touch' && S.sound) navigator.vibrate?.(8);
+}, { passive: true });
+const endPress = () => { const el = pressedEl; setTimeout(() => release(el), Math.max(0, 130 - (Date.now() - pressedAt))); };
+document.addEventListener('pointerup', endPress, { passive: true });
+document.addEventListener('pointercancel', endPress, { passive: true });
+document.addEventListener('touchstart', () => {}, { passive: true }); // aktiviert :active in iOS Safari
+
+
 updateBar();
 route();
 
