@@ -14,6 +14,7 @@
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+[hidden] { display: none !important; } /* sonst überschreibt z. B. .row { display: flex } das hidden-Attribut */
 html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
@@ -132,7 +133,8 @@ main {
   padding: 14px; border: 0; border-left: 6px solid var(--rc); border-radius: 16px;
   background: var(--card); box-shadow: var(--shadow); text-align: left;
 }
-.mode-ic { font-size: 1.5rem; min-width: 56px; text-align: center; }
+.mode-ic { font-size: 1.5rem; width: 56px; flex: none; text-align: center; white-space: nowrap; }
+.mode-ic.flags { font-size: 1rem; letter-spacing: -1px; }
 .mode-txt { flex: 1; }
 .mode-txt b { display: block; }
 .best { color: var(--gold); font-size: 1.05rem; letter-spacing: -1px; white-space: nowrap; }
@@ -178,8 +180,10 @@ main {
 .feedback .streak { font-weight: 700; color: #d06a00; }
 .feedback small { display: block; margin-top: 4px; color: inherit; opacity: .8; }
 
-.pattern { display: flex; justify-content: center; flex-wrap: wrap; gap: 4px; margin-top: 12px; }
-.pattern .ch { width: 22px; height: 30px; border-bottom: 3px solid #c9c2b4; font-weight: 800; font-size: 1.15rem; display: grid; place-items: end center; text-transform: none; }
+.pattern { margin-top: 12px; }
+.pwords { display: flex; justify-content: center; flex-wrap: wrap; column-gap: 14px; row-gap: 8px; }
+.pword { display: inline-flex; gap: 3px; white-space: nowrap; }
+.pattern .ch { width: min(22px, calc((100vw - 76px) / var(--n) - 3px)); height: 30px; border-bottom: 3px solid #c9c2b4; font-weight: 800; font-size: 1.15rem; display: grid; place-items: end center; text-transform: none; }
 .pattern .dash { border: 0; }
 .pattern .gap { width: 12px; }
 .type-form { margin-top: 16px; }
@@ -285,3 +289,4 @@ main {
 }
 .room .started { color: var(--rc); font-weight: 700; }
 .hint { margin: 14px 4px 0; }
+.practice-badge { font-size: 3.6rem; margin-top: 10px; }

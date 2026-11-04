@@ -61,6 +61,7 @@ Alle Wörter stehen in [`vocab.js`](vocab.js). Ein neuer Raum ist einfach ein we
 Die aktuelle Version steht unten in den ⚙️ Einstellungen. Bei Änderungen `APP_VERSION` in `app.js` erhöhen –
 dadurch holen sich auch installierte Apps die neuen Dateien.
 
+- **1.4.1** – Fehler aus dem Praxistest behoben: Quizfrage tauchte nach schnellem Verlassen auf anderen Seiten auf, Zurück-Taste blieb hängen, „Fehler üben“ verfälschte Sterne/Bestwert (Übungsrunden geben jetzt Punkte, aber keine Sterne), doppeltes Enter übersprang die Lösung, Buchstabenkästchen brachen mitten im Wort um, falsche Tage-Anzeige in den Einstellungen, kein Neuladen auf der Ergebnis-Seite, Lernkarten-Knöpfe waren schon vor dem Umdrehen sichtbar, Punkt am Wortende („bed.“) wird akzeptiert, Zurücksetzen löscht auch das letzte Rundenergebnis
 - **1.4.0** – Lernfortschritt sichtbar: Fortschrittsbalken zählt jeden Lernpunkt, „angefangen“-Anzeige, Lernkarten zählen mit (bis ●●○), Ergebnis zeigt „Wörter weitergekommen“
 - **1.3.2** – Lernkarten geben jetzt auch bis zu 3 Sterne (vorher immer nur 1)
 - **1.3.1** – Updates kommen zuverlässig an (kein veralteter Zwischenspeicher mehr), Knopf „Nach neuer Version suchen“

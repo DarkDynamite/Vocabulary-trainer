@@ -1,7 +1,7 @@
 'use strict';
 
 // Bei jeder Änderung erhöhen – wird in den Einstellungen angezeigt und erneuert den Offline-Cache.
-const APP_VERSION = '1.4.0';
+const APP_VERSION = '1.4.1';
 const APP_DATE = '04.11.2026';
 
 /* ---------- Helfer ---------- */
@@ -11,7 +11,8 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&
 const shuffle = (arr) => { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 // Vergleich ohne Groß/Klein, Leerzeichen und Bindestriche ("floor lamp" = "floorlamp")
-const norm = (s) => s.toLowerCase().replace(/[\s\-]+/g, '').trim();
+// …und ohne Satzzeichen ("bed." = "bed", z. B. durch Doppel-Leertaste auf Android)
+const norm = (s) => s.toLowerCase().replace(/[\s\-.,!?;:'"’]+/g, '').trim();
 
 function lev(a, b) {
   const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
@@ -140,8 +141,11 @@ if (canSpeak) {
   speechSynthesis.addEventListener?.('voiceschanged', () => { if (location.hash === '#/settings') renderSettings(); });
 }
 let lastUtterance; // Referenz halten, sonst bricht Chrome lange Ausgaben ab
+let sayToken = 0;
+function stopSpeech() { sayToken++; if (canSpeak) speechSynthesis.cancel(); }
 function say(text, lang = 'en') {
   if (!canSpeak) return;
+  const tok = ++sayToken;
   const v = voiceFor(lang);
   const u = new SpeechSynthesisUtterance(text);
   // Sprache immer explizit setzen – auch wenn keine passende Stimme gefunden wurde
@@ -151,7 +155,7 @@ function say(text, lang = 'en') {
   lastUtterance = u;
   if (speechSynthesis.speaking || speechSynthesis.pending) {
     speechSynthesis.cancel();
-    setTimeout(() => speechSynthesis.speak(u), 80); // Android verschluckt sonst die neue Ausgabe/Stimme
+    setTimeout(() => { if (tok === sayToken) speechSynthesis.speak(u); }, 80); // Android verschluckt sonst die neue Ausgabe/Stimme
   } else speechSynthesis.speak(u);
 }
 const sayBtn = (text, cls = '', lang = 'en') => (canSpeak
@@ -222,11 +226,13 @@ let session = null;
 const dirFor = (mode) => (mode === 'mix' ? (Math.random() < 0.5 ? 'de-en' : 'en-de') : mode);
 
 function go(hash) { if (location.hash === hash) route(); else location.hash = hash; }
+// Für Weiterleitungen: ersetzt den aktuellen Verlaufseintrag statt einen neuen anzulegen
+function redirect(hash) { if (location.hash === hash) route(); else location.replace(hash); }
 
 function startSession(target, mode, words) {
   const list = words ? shuffle(words) : pickRound(poolFor(target), mode === 'cards' ? CARD_ROUND : ROUND);
   session = {
-    target, mode,
+    target, mode, practice: !!words,
     queue: list.map((w) => ({ w, dir: dirFor(mode) })),
     i: 0, first: {}, points: 0, combo: 0, maxCombo: 0, retries: {},
     learnedBefore: WORDS.filter(learned).length,
@@ -236,6 +242,10 @@ function startSession(target, mode, words) {
 }
 
 function next() { session.i++; session.answered = false; renderSession(); }
+function nextLater(ms) {
+  const s = session, i = s.i;
+  setTimeout(() => { if (session === s && s.i === i && location.hash === '#/play') next(); }, ms);
+}
 
 function renderSession() {
   const s = session;
@@ -323,7 +333,7 @@ function renderQuiz() {
       b.classList.add('right');
       right(w, b);
       if (S.speak && toEn) say(w.en);
-      setTimeout(next, 1200);
+      nextLater(1200);
     } else {
       b.classList.add('wrong');
       app.querySelector('.opt[data-ok="1"]').classList.add('right');
@@ -335,11 +345,11 @@ function renderQuiz() {
 /* Schreiben */
 function pattern(word, reveal) {
   let k = 0;
-  return [...word].map((ch) => {
-    if (ch === ' ') return '<span class="gap"></span>';
+  const longest = Math.max(...word.split(' ').map((x) => x.length));
+  return `<div class="pwords" style="--n:${longest}">` + word.split(' ').map((part) => '<span class="pword">' + [...part].map((ch) => {
     if (ch === '-') return '<span class="ch dash">-</span>';
     return `<span class="ch">${k++ < reveal ? esc(ch) : ''}</span>`;
-  }).join('');
+  }).join('') + '</span>').join('') + '</div>';
 }
 function renderType() {
   const s = session;
@@ -369,10 +379,11 @@ function renderType() {
   };
   $('#typeForm').onsubmit = (e) => {
     e.preventDefault();
-    if (s.answered) return next();
+    if (s.answered) { if (Date.now() - s.answeredAt > 700) next(); return; }
     const v = inp.value;
     if (!v.trim()) return;
     s.answered = true;
+    s.answeredAt = Date.now();
     inp.readOnly = true;
     $('#hintBtn').disabled = true;
     $('#checkBtn').textContent = 'Weiter ➜';
@@ -450,11 +461,13 @@ function finish() {
   const tot = ids.length;
   const ratio = tot ? good / tot : 0;
   // Gleiche Regel für alle Modi (auch Lernkarten): ab 90 % = 3, ab 70 % = 2, ab 50 % = 1 Stern
-  const stars = ratio >= 0.9 ? 3 : ratio >= 0.7 ? 2 : ratio >= 0.5 ? 1 : 0;
+  // Übungsrunden mit den Fehlern und Mini-Runden (unter 5 Wörtern) geben Punkte, aber keine Sterne
+  const starRound = !s.practice && tot >= 5;
+  const stars = !starRound ? 0 : ratio >= 0.9 ? 3 : ratio >= 0.7 ? 2 : ratio >= 0.5 ? 1 : 0;
   S.stars += stars;
   S.rounds++;
   touchDay();
-  if (s.target !== 'hard') { const k = `${s.target}:${s.mode}`; S.best[k] = Math.max(S.best[k] || 0, stars); }
+  if (starRound && s.target !== 'hard') { const k = `${s.target}:${s.mode}`; S.best[k] = Math.max(S.best[k] || 0, stars); }
 
   const earned = Math.min(STICKERS.length, Math.floor(S.stars / STARS_PER_STICKER));
   s.newStickers = [];
@@ -462,7 +475,7 @@ function finish() {
   s.newCrowns = ROOMS.filter((r) => !S.crowns.includes(r.id) && poolFor(r.id).every(learned));
   s.newCrowns.forEach((r) => S.crowns.push(r.id));
 
-  s.result = { good, tot, stars, learnedNew: WORDS.filter(learned).length - s.learnedBefore,
+  s.result = { good, tot, stars, starRound, learnedNew: WORDS.filter(learned).length - s.learnedBefore,
     improved: Object.keys(s.levelsBefore).filter((id) => level3({ id }) > s.levelsBefore[id]).length };
   s.wrongWords = ids.filter((id) => !s.first[id]).map((id) => WORDS.find((w) => w.id === id));
   save(); updateBar();
@@ -471,11 +484,12 @@ function finish() {
 
 function renderResult(celebrate) {
   const s = session, r = s.result;
-  const msg = r.stars === 3 ? 'Fantastisch! 🎉' : r.stars === 2 ? 'Sehr gut gemacht! 😊' : r.stars === 1 ? 'Gut! Weiter so! 💪' : 'Übung macht den Meister! 🍀';
+  const msg = !r.starRound ? (r.good === r.tot ? 'Super geübt! 🎉' : 'Gut geübt! 💪') : r.stars === 3 ? 'Fantastisch! 🎉' : r.stars === 2 ? 'Sehr gut gemacht! 😊' : r.stars === 1 ? 'Gut! Weiter so! 💪' : 'Übung macht den Meister! 🍀';
   const allStickers = S.stickers.length >= STICKERS.length;
   app.innerHTML = `
   <div class="result">
-    <div class="stars ${celebrate ? 'anim' : ''}">${[1, 2, 3].map((i) => `<span class="star ${i <= r.stars ? 'on' : ''}" style="animation-delay:${i * 0.25}s">★</span>`).join('')}</div>
+    ${!r.starRound ? `<div class="practice-badge">💪</div>` : ''}
+    <div class="stars ${celebrate ? 'anim' : ''}" ${r.starRound ? '' : 'hidden'}>${[1, 2, 3].map((i) => `<span class="star ${i <= r.stars ? 'on' : ''}" style="animation-delay:${i * 0.25}s">★</span>`).join('')}</div>
     <h1>${msg}</h1>
     <p class="big">${s.mode === 'cards' ? `${r.good} von ${r.tot} Karten sofort gewusst` : `${r.good} von ${r.tot} beim ersten Versuch richtig`}</p>
     <div class="chips">
@@ -486,6 +500,7 @@ function renderResult(celebrate) {
     </div>
     ${s.newStickers.length
       ? `<div class="reward"><div class="reward-st">${s.newStickers.join(' ')}</div><b>Neuer Sticker!</b> Schau in dein Album.</div>`
+      : !r.starRound ? `<p class="muted">${s.practice ? 'Übungsrunde' : 'Mini-Runde'}: Hier gibt es Punkte und Lernpunkte, aber keine Sterne. Sterne gibt es in normalen Runden.</p>`
       : allStickers ? '' : `<p class="muted">Noch ${STARS_PER_STICKER - (S.stars % STARS_PER_STICKER)} ⭐ bis zum nächsten Sticker</p>`}
     ${s.newCrowns.map((c) => `<div class="reward crown">👑 <b>${c.name} gemeistert!</b><br>Du kannst alle Wörter aus diesem Raum!</div>`).join('')}
     ${s.wrongWords.length ? `<div class="review"><h3>Diese Wörter üben wir nochmal:</h3>${s.wrongWords.map((w) => `<div class="rv"><span>${w.emoji} ${esc(w.de)}</span><b>${esc(w.en)}</b>${sayBtn(w.en, 'sm')}</div>`).join('')}</div>` : ''}
@@ -497,7 +512,7 @@ function renderResult(celebrate) {
   </div>`;
   $('#again').onclick = () => startSession(s.target, s.mode);
   if (s.wrongWords.length) $('#practise').onclick = () => startSession(s.target, s.mode, s.wrongWords);
-  if (celebrate && (r.stars >= 2 || s.newStickers.length || s.newCrowns.length)) { confetti(); sfx.win(); }
+  if (celebrate && (r.stars >= 2 || (!r.starRound && r.good === r.tot) || s.newStickers.length || s.newCrowns.length)) { confetti(); sfx.win(); }
 }
 
 /* ---------- Seiten ---------- */
@@ -550,7 +565,7 @@ const MODES = [
 function renderRoom(target) {
   const info = targetInfo(target);
   const pool = poolFor(target);
-  if (!info || !pool.length) return go('#/');
+  if (!info || !pool.length) return redirect('#/');
   app.innerHTML = `
     <div class="room-head" style="--rc:${info.color}">
       <span>${info.emoji}</span>
@@ -559,7 +574,7 @@ function renderRoom(target) {
     <div class="modes">${MODES.map(([id, ic, t, d]) => {
       const b = S.best[`${target}:${id}`] || 0;
       return `<button class="mode" data-start="${id}" style="--rc:${info.color}">
-        <span class="mode-ic">${ic}</span>
+        <span class="mode-ic ${ic.includes('→') ? 'flags' : ''}">${ic}</span>
         <span class="mode-txt"><b>${t}</b><small>${d}</small></span>
         ${target === 'hard' ? '' : `<span class="best" aria-label="${b} Sterne">${'★'.repeat(b)}<i>${'★'.repeat(3 - b)}</i></span>`}
       </button>`;
@@ -573,7 +588,7 @@ function renderRoom(target) {
 function renderList(target) {
   const info = targetInfo(target);
   const pool = poolFor(target);
-  if (!info || !pool.length) return go('#/');
+  if (!info || !pool.length) return redirect('#/');
   app.innerHTML = `
     <h1>${info.emoji} ${info.name}</h1>
     <p class="muted">Jede richtige Antwort gibt einen Punkt ●. Bei ●●● (${MASTER}× hintereinander richtig) ist das Wort gelernt.
@@ -634,7 +649,7 @@ function renderSettings() {
     <div class="statbox">
       <div><b>${S.rounds}</b><small>Runden</small></div>
       <div><b>${WORDS.filter(learned).length}/${WORDS.length}</b><small>Wörter gelernt</small></div>
-      <div><b>${S.day.count}</b><small>Tage am Stück</small></div>
+      <div><b>${streakNow()}</b><small>Tage am Stück</small></div>
     </div>
     <button class="btn bad" id="resetBtn">Fortschritt zurücksetzen</button>
     <a class="btn primary" href="#/">✓ Fertig</a>
@@ -650,24 +665,24 @@ function renderSettings() {
     say(sel.dataset.lang === 'en' ? 'Hello! This is the toothbrush.' : 'Hallo! Das ist die Zahnbürste.', sel.dataset.lang);
   }));
   $('#resetBtn').onclick = () => {
-    if (confirm('Wirklich alles zurücksetzen? Punkte, Sterne und Sticker gehen verloren.')) { S = defaults(); save(); updateBar(); go('#/'); }
+    if (confirm('Wirklich alles zurücksetzen? Punkte, Sterne und Sticker gehen verloren.')) { S = defaults(); session = null; save(); updateBar(); go('#/'); }
   };
 }
 
 /* ---------- Router ---------- */
 function route() {
   const [, page = '', arg] = (location.hash || '#/').split('/');
-  if (canSpeak) speechSynthesis.cancel();
+  stopSpeech();
   if (page !== 'play') window.scrollTo(0, 0);
   if (page !== 'play') document.querySelectorAll('.confetti, .pop').forEach((el) => el.remove());
   switch (page) {
-    case 'room': return validTarget(arg) ? renderRoom(arg) : go('#/');
-    case 'list': return validTarget(arg) ? renderList(arg) : go('#/');
+    case 'room': return validTarget(arg) ? renderRoom(arg) : redirect('#/');
+    case 'list': return validTarget(arg) ? renderList(arg) : redirect('#/');
     case 'album': return renderAlbum();
     case 'settings': return renderSettings();
     case 'play':
       if (session) return session.finished ? renderResult(false) : renderSession();
-      return go('#/');
+      return redirect('#/');
     default: return renderHome();
   }
 }
@@ -678,7 +693,8 @@ document.addEventListener('click', (e) => {
   if (e.target.closest('[data-quit]') && session && confirm('Runde wirklich abbrechen?')) {
     const t = session.target;
     session = null;
-    location.hash = '#/room/' + t;
+    // #/play liegt immer direkt über der Raum-Seite → einen Schritt zurück statt neuem Eintrag
+    if (location.hash === '#/play' && history.length > 1) history.back(); else redirect('#/room/' + t);
   }
 });
 window.addEventListener('hashchange', route);
@@ -705,7 +721,7 @@ updateBar();
 route();
 
 /* ---------- Updates ---------- */
-const inRound = () => location.hash === '#/play' && session && !session.finished;
+const inRound = () => location.hash === '#/play' && !!session; // auch Ergebnis-Seite schützen
 function showUpdateBanner() {
   if ($('#updateBanner')) return;
   const d = document.createElement('button');
