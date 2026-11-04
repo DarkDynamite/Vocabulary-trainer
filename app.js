@@ -1,7 +1,7 @@
 'use strict';
 
 // Bei jeder Änderung erhöhen – wird in den Einstellungen angezeigt und erneuert den Offline-Cache.
-const APP_VERSION = '1.5.1';
+const APP_VERSION = '1.6.0';
 const APP_DATE = '04.11.2026';
 
 /* ---------- Helfer ---------- */
@@ -33,24 +33,34 @@ const WORDS = ROOMS.flatMap((r) => r.words.map(([en, de, emoji]) => ({ id: `${r.
 const roomById = (id) => ROOMS.find((r) => r.id === id);
 
 const STICKERS = STICKER_INFO.map((x) => x[0]); // Namen & Funktionen in stickers.js
+// Level-Titel je nach Einstellung: f = Mädchen, m = Junge, n = neutral
 const LEVELS = [
-  [0, 'Vokabel-Küken', '🐣'],
-  [100, 'Wort-Entdeckerin', '🔎'],
-  [250, 'Fleißige Biene', '🐝'],
-  [500, 'Englisch-Fuchs', '🦊'],
-  [900, 'Vokabel-Profi', '🎓'],
-  [1400, 'Sprach-Star', '🌟'],
-  [2000, 'Wort-Zauberin', '🧙‍♀️'],
-  [3000, 'Englisch-Heldin', '🦸‍♀️'],
-  [4500, 'Vokabel-Königin', '👑'],
-  [6500, 'Legende', '🏆'],
+  [0, { f: ['Vokabel-Küken', '🐣'], m: ['Vokabel-Küken', '🐣'], n: ['Vokabel-Küken', '🐣'] }],
+  [100, { f: ['Wort-Entdeckerin', '🔎'], m: ['Wort-Entdecker', '🔎'], n: ['Wort-Spürnase', '🔎'] }],
+  [250, { f: ['Fleißige Biene', '🐝'], m: ['Fleißige Biene', '🐝'], n: ['Fleißige Biene', '🐝'] }],
+  [500, { f: ['Englisch-Füchsin', '🦊'], m: ['Englisch-Fuchs', '🦊'], n: ['Schlauer Fuchs', '🦊'] }],
+  [900, { f: ['Vokabel-Profi', '🎓'], m: ['Vokabel-Profi', '🎓'], n: ['Vokabel-Profi', '🎓'] }],
+  [1400, { f: ['Sprach-Star', '🌟'], m: ['Sprach-Star', '🌟'], n: ['Sprach-Star', '🌟'] }],
+  [2000, { f: ['Wort-Zauberin', '🧙‍♀️'], m: ['Wort-Zauberer', '🧙‍♂️'], n: ['Zauber-Talent', '🧙'] }],
+  [3000, { f: ['Englisch-Heldin', '🦸‍♀️'], m: ['Englisch-Held', '🦸‍♂️'], n: ['Sprach-Ass', '🦸'] }],
+  [4500, { f: ['Vokabel-Königin', '👑'], m: ['Vokabel-König', '👑'], n: ['Vokabel-Majestät', '👑'] }],
+  [6500, { f: ['Legende', '🏆'], m: ['Legende', '🏆'], n: ['Legende', '🏆'] }],
 ];
+const GENDERS = [['f', '👧', 'Mädchen'], ['m', '👦', 'Junge'], ['n', '🙂', 'Neutral']];
 const PRAISE = ['Super!', 'Klasse!', 'Toll!', 'Genau!', 'Spitze!', 'Wow!', 'Perfekt!', 'Richtig gut!', 'Great!', 'Awesome!', 'Well done!', 'Yes!'];
 
 /* ---------- Speicher ---------- */
 const STORE = 'vokabeltrainer-v1';
-const defaults = () => ({ name: '', points: 0, stars: 0, rounds: 0, words: {}, day: { last: null, count: 0 }, stickers: [], crowns: [], best: {}, sound: true, speak: true, voices: {}, buddy: null, board: { bg: 'meadow', items: [] } });
-function load() { try { return { ...defaults(), ...JSON.parse(localStorage.getItem(STORE) || '{}') }; } catch { return defaults(); } }
+const defaults = () => ({ name: '', points: 0, stars: 0, rounds: 0, words: {}, day: { last: null, count: 0 }, stickers: [], crowns: [], best: {}, sound: true, speak: true, voices: {}, gender: 'n', buddy: null, board: { bg: 'meadow', items: [] } });
+function load() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORE) || 'null');
+    if (!saved) return defaults();
+    // Wer schon vor dieser Einstellung gespielt hat, kannte die weiblichen Titel → so lassen
+    if (!('gender' in saved)) saved.gender = 'f';
+    return { ...defaults(), ...saved };
+  } catch { return defaults(); }
+}
 function save() { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch { /* privat/voll */ } }
 let S = load();
 
@@ -72,7 +82,8 @@ const streakNow = () => (S.day.last === dayStr() || S.day.last === yesterday() ?
 function level(p = S.points) {
   let i = 0;
   while (i + 1 < LEVELS.length && p >= LEVELS[i + 1][0]) i++;
-  const [min, title, icon] = LEVELS[i];
+  const [min, byGender] = LEVELS[i];
+  const [title, icon] = byGender[S.gender] || byGender.n;
   return { i, title, icon, min, next: LEVELS[i + 1]?.[0] };
 }
 
@@ -634,6 +645,10 @@ function renderSettings() {
   app.innerHTML = `
     <h1>⚙️ Einstellungen</h1>
     <label class="field">Dein Name<input id="nameIn" maxlength="20" value="${esc(S.name)}" placeholder="z. B. Lena" autocomplete="off"></label>
+    <div class="field">Titel für
+      <div class="seg" role="radiogroup" aria-label="Titel für">${GENDERS.map(([g, ic, label]) => `<button class="seg-btn ${S.gender === g ? 'on' : ''}" data-gender="${g}" role="radio" aria-checked="${S.gender === g}"><span>${ic}</span>${label}</button>`).join('')}</div>
+      <small id="titlePreview">Dein Titel jetzt: ${level().icon} ${level().title}</small>
+    </div>
     <label class="toggle"><span>🔔 Töne</span><input type="checkbox" id="sndIn" ${S.sound ? 'checked' : ''}></label>
     <label class="toggle"><span>🔊 Englische Wörter vorlesen</span><input type="checkbox" id="spkIn" ${S.speak ? 'checked' : ''}></label>
     ${canSpeak ? ['en', 'de'].map((l) => voicePicker(l)).join('') : '<p class="muted">Dieser Browser kann leider nicht vorlesen.</p>'}
@@ -648,6 +663,11 @@ function renderSettings() {
     <button class="btn ghost" id="refreshBtn">🔄 Nach neuer Version suchen</button>`;
   $('#refreshBtn').onclick = () => { $('#refreshBtn').textContent = '⏳ Lädt …'; hardRefresh(); };
   $('#nameIn').oninput = (e) => { S.name = e.target.value.trim(); save(); };
+  app.querySelectorAll('[data-gender]').forEach((b) => (b.onclick = () => {
+    S.gender = b.dataset.gender; save();
+    app.querySelectorAll('[data-gender]').forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-checked', x === b); });
+    $('#titlePreview').textContent = `Dein Titel jetzt: ${level().icon} ${level().title}`;
+  }));
   $('#sndIn').onchange = (e) => { S.sound = e.target.checked; save(); };
   $('#spkIn').onchange = (e) => { S.speak = e.target.checked; save(); };
   app.querySelectorAll('.voice-sel').forEach((sel) => (sel.onchange = () => {

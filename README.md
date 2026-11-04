@@ -24,7 +24,8 @@ Jeder Modus geht pro Raum, über **🎲 Alles gemischt** (alle Räume) oder übe
   englischen Namen. Einen Sticker als **Begleiter** wählen, der beim Üben mitjubelt, und im
   🎨 **Sticker-Bild** eigene Bilder bekleben (verschieben, größer/kleiner, drehen)
 - 👑 **Kronen**: für jeden Raum, in dem alle Wörter gelernt sind
-- 🐣 **Level** mit Titeln (Vokabel-Küken → … → Legende)
+- 🐣 **Level** mit Titeln (Vokabel-Küken → … → Legende) – in den Einstellungen wählbar für Mädchen,
+  Junge oder neutral
 - 🔥 **Tage am Stück**, an denen geübt wurde
 - Konfetti, Töne und viel Lob 🎉
 
@@ -63,6 +64,7 @@ Alle Wörter stehen in [`vocab.js`](vocab.js). Ein neuer Raum ist einfach ein we
 Die aktuelle Version steht unten in den ⚙️ Einstellungen. Bei Änderungen `APP_VERSION` in `app.js` erhöhen –
 dadurch holen sich auch installierte Apps die neuen Dateien.
 
+- **1.6.0** – Einstellung „Titel für“: Mädchen, Junge oder neutral (z. B. Wort-Zauberin / Wort-Zauberer / Zauber-Talent)
 - **1.5.1** – Beim Scrollen werden Knöpfe nicht mehr eingedrückt und es vibriert nicht mehr (nur noch bei echtem Antippen)
 - **1.5.0** – Sticker zum Spielen: im Album antippen → Sticker sagt seinen englischen Namen; Begleiter wählen, der beim Üben mitjubelt; 🎨 Sticker-Bild gestalten (Wiese, Meer, Weltraum, Zimmer)
 - **1.4.1** – Fehler aus dem Praxistest behoben: Quizfrage tauchte nach schnellem Verlassen auf anderen Seiten auf, Zurück-Taste blieb hängen, „Fehler üben“ verfälschte Sterne/Bestwert (Übungsrunden geben jetzt Punkte, aber keine Sterne), doppeltes Enter übersprang die Lösung, Buchstabenkästchen brachen mitten im Wort um, falsche Tage-Anzeige in den Einstellungen, kein Neuladen auf der Ergebnis-Seite, Lernkarten-Knöpfe waren schon vor dem Umdrehen sichtbar, Punkt am Wortende („bed.“) wird akzeptiert, Zurücksetzen löscht auch das letzte Rundenergebnis
