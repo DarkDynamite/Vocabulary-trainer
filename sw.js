@@ -1,5 +1,5 @@
 // Offline-Unterstützung: erst Netzwerk (damit Updates sofort ankommen), sonst Cache.
-const CACHE = 'vokabeln-v2';
+const CACHE = 'vokabeln-v3';
 const ASSETS = ['./', 'index.html', 'style.css', 'app.js', 'vocab.js', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {

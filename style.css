@@ -266,3 +266,14 @@ main {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
   .confetti { display: none; }
 }
+
+/* Vorlese-Knöpfe mit Sprach-Fähnchen */
+.say { position: relative; }
+.say .flag { position: absolute; right: -4px; bottom: -4px; font-size: .7em; line-height: 1; }
+.say.say-de { background: #fff4e0; }
+.qcard .say + .pattern { margin-top: 14px; }
+.wl .say.sm + .say.sm { margin-left: -4px; }
+.field.voice { margin: 12px 0; }
+.field.voice .row { align-items: center; margin-top: 6px; }
+.voice-sel { flex: 1; min-width: 0; padding: 12px; font: inherit; font-size: .95rem; border: 3px solid var(--line); border-radius: 14px; background: var(--card); color: var(--ink); }
+.field.voice small { display: block; margin-top: 6px; font-weight: 400; }

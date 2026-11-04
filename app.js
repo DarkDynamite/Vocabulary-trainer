@@ -44,7 +44,7 @@ const PRAISE = ['Super!', 'Klasse!', 'Toll!', 'Genau!', 'Spitze!', 'Wow!', 'Perf
 
 /* ---------- Speicher ---------- */
 const STORE = 'vokabeltrainer-v1';
-const defaults = () => ({ name: '', points: 0, stars: 0, rounds: 0, words: {}, day: { last: null, count: 0 }, stickers: [], crowns: [], best: {}, sound: true, speak: true });
+const defaults = () => ({ name: '', points: 0, stars: 0, rounds: 0, words: {}, day: { last: null, count: 0 }, stickers: [], crowns: [], best: {}, sound: true, speak: true, voices: {} });
 function load() { try { return { ...defaults(), ...JSON.parse(localStorage.getItem(STORE) || '{}') }; } catch { return defaults(); } }
 function save() { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch { /* privat/voll */ } }
 let S = load();
@@ -103,22 +103,54 @@ const sfx = {
 };
 
 const canSpeak = 'speechSynthesis' in window;
-let voice = null;
-function pickVoice() {
-  const vs = speechSynthesis.getVoices();
-  voice = vs.find((v) => /en[-_]GB/i.test(v.lang)) || vs.find((v) => /^en/i.test(v.lang)) || null;
+const LANGS = { en: { tag: 'en-GB', label: 'Englisch' }, de: { tag: 'de-DE', label: 'Deutsch' } };
+const vLang = (v) => v.lang.replace(/_/g, '-').toLowerCase();
+// Spaß-/Effektstimmen (v. a. iOS/macOS), die Wörter verzerrt oder gesungen aussprechen
+const NOVELTY = /\b(albert|bad news|bahh|bells|boing|bubbles|cellos|deranged|good news|hysterical|jester|junior|organ|pipe organ|superstar|trinoids|whisper|wobble|zarvox|fred|ralph|kathy)\b/i;
+const FAMILY = /\b(eddy|flo|reed|rocko|sandy|shelley|grandma|grandpa)\b/i; // iOS-Mehrsprachstimmen: eher schwache Aussprache
+const GOOD = /google|natural|neural|premium|enhanced|siri|daniel|kate|serena|arthur|martha|samantha|karen|moira|anna|helena|markus|petra|yannick|katja|conrad|amala/i;
+
+function voicesFor(lang) {
+  if (!canSpeak) return [];
+  return speechSynthesis.getVoices().filter((v) => vLang(v).startsWith(lang + '-') || vLang(v) === lang);
 }
-if (canSpeak) { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
-function say(text) {
+function scoreVoice(v, lang) {
+  if (NOVELTY.test(v.name)) return -100;
+  let sc = 0;
+  if (vLang(v) === LANGS[lang].tag.toLowerCase()) sc += 3;
+  if (lang === 'en' && /^en-(us|au|ie|ca|nz)$/.test(vLang(v))) sc += 1;
+  if (GOOD.test(v.name)) sc += 3;
+  if (FAMILY.test(v.name)) sc -= 2;
+  return sc;
+}
+function voiceFor(lang) {
+  const vs = voicesFor(lang);
+  const chosen = S.voices?.[lang] && vs.find((v) => v.voiceURI === S.voices[lang]);
+  if (chosen) return chosen;
+  return vs.map((v) => ({ v, sc: scoreVoice(v, lang) })).filter((x) => x.sc > -100).sort((a, b) => b.sc - a.sc)[0]?.v || null;
+}
+if (canSpeak) {
+  speechSynthesis.getVoices(); // Laden anstoßen (Chrome/Android laden asynchron)
+  speechSynthesis.addEventListener?.('voiceschanged', () => { if (location.hash === '#/settings') renderSettings(); });
+}
+let lastUtterance; // Referenz halten, sonst bricht Chrome lange Ausgaben ab
+function say(text, lang = 'en') {
   if (!canSpeak) return;
-  speechSynthesis.cancel();
+  const v = voiceFor(lang);
   const u = new SpeechSynthesisUtterance(text);
-  u.lang = voice?.lang || 'en-GB';
-  if (voice) u.voice = voice;
-  u.rate = 0.85;
-  speechSynthesis.speak(u);
+  // Sprache immer explizit setzen – auch wenn keine passende Stimme gefunden wurde
+  u.lang = v ? v.lang.replace(/_/g, '-') : LANGS[lang].tag;
+  if (v) u.voice = v;
+  u.rate = lang === 'en' ? 0.85 : 0.95;
+  lastUtterance = u;
+  if (speechSynthesis.speaking || speechSynthesis.pending) {
+    speechSynthesis.cancel();
+    setTimeout(() => speechSynthesis.speak(u), 80); // Android verschluckt sonst die neue Ausgabe/Stimme
+  } else speechSynthesis.speak(u);
 }
-const sayBtn = (text, cls = '') => (canSpeak ? `<button class="say ${cls}" data-say="${esc(text)}" aria-label="Vorlesen">🔊</button>` : '');
+const sayBtn = (text, cls = '', lang = 'en') => (canSpeak
+  ? `<button class="say ${cls} say-${lang}" data-say="${esc(text)}" data-lang="${lang}" aria-label="${LANGS[lang].label} vorlesen">🔊<span class="flag">${lang === 'en' ? '🇬🇧' : '🇩🇪'}</span></button>`
+  : '');
 
 /* ---------- Effekte ---------- */
 function confetti(n = 90) {
@@ -273,7 +305,7 @@ function renderQuiz() {
     <div class="qcard" style="--rc:${roomById(w.room).color}">
       <small>${toEn ? 'Was heißt auf Englisch …' : 'Was heißt auf Deutsch …'}</small>
       <div class="qword">${esc(toEn ? w.de : w.en)}</div>
-      ${toEn ? '' : sayBtn(w.en)}
+      ${toEn ? sayBtn(w.de, '', 'de') : sayBtn(w.en)}
     </div>
     <div class="options">${opts.map((o) => `<button class="opt" data-ok="${norm(o[field]) === norm(w[field]) ? 1 : 0}">${esc(o[field])}</button>`).join('')}</div>
     <div class="feedback" id="fb"></div>`;
@@ -311,6 +343,7 @@ function renderType() {
     <div class="qcard" style="--rc:${roomById(w.room).color}">
       <small>Schreibe auf Englisch …</small>
       <div class="qword">${esc(w.de)}</div>
+      ${sayBtn(w.de, '', 'de')}
       <div class="pattern" id="pattern">${pattern(w.en, 0)}</div>
     </div>
     <form id="typeForm" class="type-form" autocomplete="off">
@@ -363,7 +396,7 @@ function renderCard() {
   app.innerHTML = playHead() + `
     <div class="flip" id="flip" style="--rc:${roomById(w.room).color}">
       <div class="flip-inner">
-        <div class="face front"><span class="fc-emoji">${w.emoji}</span><small>Deutsch</small><div class="qword">${esc(w.de)}</div><small class="tap">👆 Tippen zum Umdrehen</small></div>
+        <div class="face front"><span class="fc-emoji">${w.emoji}</span><small>Deutsch</small><div class="qword">${esc(w.de)}</div>${sayBtn(w.de, '', 'de')}<small class="tap">👆 Tippen zum Umdrehen</small></div>
         <div class="face back"><span class="fc-emoji">${w.emoji}</span><small>Englisch</small><div class="qword">${esc(w.en)}</div>${sayBtn(w.en)}</div>
       </div>
     </div>
@@ -531,7 +564,7 @@ function renderList(target) {
         <span class="wl-e">${w.emoji}</span>
         <span class="wl-w"><b>${esc(w.en)}</b><small>${esc(w.de)}</small></span>
         <span class="wl-m">${'●'.repeat(c)}${'○'.repeat(MASTER - c)}</span>
-        ${sayBtn(w.en, 'sm')}
+        ${sayBtn(w.de, 'sm', 'de')}${sayBtn(w.en, 'sm')}
       </div>`;
     }).join('')}</div>
     <a class="btn ghost" href="#/room/${target}">← Zurück</a>`;
@@ -553,12 +586,31 @@ function renderAlbum() {
     <a class="btn ghost" href="#/">← Zurück</a>`;
 }
 
+function voicePicker(lang) {
+  const vs = voicesFor(lang).filter((v) => !NOVELTY.test(v.name));
+  const auto = voiceFor(lang);
+  const cur = S.voices?.[lang] || '';
+  const sample = lang === 'en' ? 'Hello! This is the toothbrush.' : 'Hallo! Das ist die Zahnbürste.';
+  return `<div class="field voice">
+    <span>🗣️ Stimme ${LANGS[lang].label}</span>
+    <div class="row">
+      <select class="voice-sel" data-lang="${lang}">
+        <option value="">Automatisch${!cur && auto ? ` (${esc(auto.name)})` : ''}</option>
+        ${vs.map((v) => `<option value="${esc(v.voiceURI)}" ${v.voiceURI === cur ? 'selected' : ''}>${esc(v.name)} · ${esc(v.lang)}</option>`).join('')}
+      </select>
+      ${sayBtn(sample, '', lang)}
+    </div>
+    ${vs.length ? '' : `<small>Keine ${LANGS[lang].label}-Stimme gefunden. Am Handy unter Einstellungen → Sprache → Text-in-Sprache eine Stimme installieren.</small>`}
+  </div>`;
+}
+
 function renderSettings() {
   app.innerHTML = `
     <h1>⚙️ Einstellungen</h1>
     <label class="field">Dein Name<input id="nameIn" maxlength="20" value="${esc(S.name)}" placeholder="z. B. Lena" autocomplete="off"></label>
     <label class="toggle"><span>🔔 Töne</span><input type="checkbox" id="sndIn" ${S.sound ? 'checked' : ''}></label>
     <label class="toggle"><span>🔊 Englische Wörter vorlesen</span><input type="checkbox" id="spkIn" ${S.speak ? 'checked' : ''}></label>
+    ${canSpeak ? ['en', 'de'].map((l) => voicePicker(l)).join('') : '<p class="muted">Dieser Browser kann leider nicht vorlesen.</p>'}
     <div class="statbox">
       <div><b>${S.rounds}</b><small>Runden</small></div>
       <div><b>${WORDS.filter(learned).length}/${WORDS.length}</b><small>Wörter gelernt</small></div>
@@ -569,6 +621,11 @@ function renderSettings() {
   $('#nameIn').oninput = (e) => { S.name = e.target.value.trim(); save(); };
   $('#sndIn').onchange = (e) => { S.sound = e.target.checked; save(); };
   $('#spkIn').onchange = (e) => { S.speak = e.target.checked; save(); };
+  app.querySelectorAll('.voice-sel').forEach((sel) => (sel.onchange = () => {
+    S.voices = { ...S.voices, [sel.dataset.lang]: sel.value };
+    save();
+    say(sel.dataset.lang === 'en' ? 'Hello! This is the toothbrush.' : 'Hallo! Das ist die Zahnbürste.', sel.dataset.lang);
+  }));
   $('#resetBtn').onclick = () => {
     if (confirm('Wirklich alles zurücksetzen? Punkte, Sterne und Sticker gehen verloren.')) { S = defaults(); save(); updateBar(); go('#/'); }
   };
@@ -593,7 +650,7 @@ function route() {
 
 document.addEventListener('click', (e) => {
   const sb = e.target.closest('[data-say]');
-  if (sb) { say(sb.dataset.say); return; }
+  if (sb) { say(sb.dataset.say, sb.dataset.lang || 'en'); return; }
   if (e.target.closest('[data-quit]') && session && confirm('Runde wirklich abbrechen?')) {
     const t = session.target;
     session = null;
