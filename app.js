@@ -1,5 +1,9 @@
 'use strict';
 
+// Bei jeder Änderung erhöhen – wird in den Einstellungen angezeigt und erneuert den Offline-Cache.
+const APP_VERSION = '1.3.0';
+const APP_DATE = '04.11.2026';
+
 /* ---------- Helfer ---------- */
 const $ = (s, el = document) => el.querySelector(s);
 const app = document.getElementById('app');
@@ -617,7 +621,8 @@ function renderSettings() {
       <div><b>${S.day.count}</b><small>Tage am Stück</small></div>
     </div>
     <button class="btn bad" id="resetBtn">Fortschritt zurücksetzen</button>
-    <a class="btn primary" href="#/">✓ Fertig</a>`;
+    <a class="btn primary" href="#/">✓ Fertig</a>
+    <p class="version">Vokabel-Trainer · Version ${APP_VERSION} · ${APP_DATE}</p>`;
   $('#nameIn').oninput = (e) => { S.name = e.target.value.trim(); save(); };
   $('#sndIn').onchange = (e) => { S.sound = e.target.checked; save(); };
   $('#spkIn').onchange = (e) => { S.speak = e.target.checked; save(); };
@@ -681,5 +686,5 @@ updateBar();
 route();
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  navigator.serviceWorker.register('sw.js').catch(() => {});
+  navigator.serviceWorker.register('sw.js?v=' + APP_VERSION).catch(() => {});
 }

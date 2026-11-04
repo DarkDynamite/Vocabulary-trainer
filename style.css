@@ -277,3 +277,4 @@ main {
 .field.voice .row { align-items: center; margin-top: 6px; }
 .voice-sel { flex: 1; min-width: 0; padding: 12px; font: inherit; font-size: .95rem; border: 3px solid var(--line); border-radius: 14px; background: var(--card); color: var(--ink); }
 .field.voice small { display: block; margin-top: 6px; font-weight: 400; }
+.version { text-align: center; color: var(--muted); font-size: .85rem; margin-top: 18px; }

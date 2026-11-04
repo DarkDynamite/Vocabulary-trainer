@@ -1,5 +1,6 @@
 // Offline-Unterstützung: erst Netzwerk (damit Updates sofort ankommen), sonst Cache.
-const CACHE = 'vokabeln-v3';
+// Version kommt aus app.js (sw.js?v=…); neue Version = neuer Cache
+const CACHE = 'vokabeln-' + (new URL(location.href).searchParams.get('v') || 'dev');
 const ASSETS = ['./', 'index.html', 'style.css', 'app.js', 'vocab.js', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
