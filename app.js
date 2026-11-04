@@ -1,7 +1,7 @@
 'use strict';
 
 // Bei jeder Änderung erhöhen – wird in den Einstellungen angezeigt und erneuert den Offline-Cache.
-const APP_VERSION = '1.4.1';
+const APP_VERSION = '1.5.0';
 const APP_DATE = '04.11.2026';
 
 /* ---------- Helfer ---------- */
@@ -32,7 +32,7 @@ const STARS_PER_STICKER = 5;
 const WORDS = ROOMS.flatMap((r) => r.words.map(([en, de, emoji]) => ({ id: `${r.id}|${en}`, en, de, emoji, room: r.id })));
 const roomById = (id) => ROOMS.find((r) => r.id === id);
 
-const STICKERS = ['🐶', '🐱', '🐰', '🦊', '🐼', '🐨', '🐯', '🦁', '🐸', '🐵', '🐧', '🦉', '🦄', '🐝', '🦋', '🐢', '🐬', '🐳', '🦒', '🦓', '🐘', '🦔', '🦥', '🦩', '🐙', '🦖', '🐉', '🌈', '🍦', '🎠'];
+const STICKERS = STICKER_INFO.map((x) => x[0]); // Namen & Funktionen in stickers.js
 const LEVELS = [
   [0, 'Vokabel-Küken', '🐣'],
   [100, 'Wort-Entdeckerin', '🔎'],
@@ -49,7 +49,7 @@ const PRAISE = ['Super!', 'Klasse!', 'Toll!', 'Genau!', 'Spitze!', 'Wow!', 'Perf
 
 /* ---------- Speicher ---------- */
 const STORE = 'vokabeltrainer-v1';
-const defaults = () => ({ name: '', points: 0, stars: 0, rounds: 0, words: {}, day: { last: null, count: 0 }, stickers: [], crowns: [], best: {}, sound: true, speak: true, voices: {} });
+const defaults = () => ({ name: '', points: 0, stars: 0, rounds: 0, words: {}, day: { last: null, count: 0 }, stickers: [], crowns: [], best: {}, sound: true, speak: true, voices: {}, buddy: null, board: { bg: 'meadow', items: [] } });
 function load() { try { return { ...defaults(), ...JSON.parse(localStorage.getItem(STORE) || '{}') }; } catch { return defaults(); } }
 function save() { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch { /* privat/voll */ } }
 let S = load();
@@ -80,6 +80,7 @@ function updateBar() {
   $('#barPoints').textContent = S.points;
   $('#barStars').textContent = S.stars;
   $('#barStreak').textContent = streakNow();
+  renderBuddy();
 }
 
 /* ---------- Töne & Sprache ---------- */
@@ -289,7 +290,7 @@ function right(w, el, base = 10, countMastery = true) {
   const fb = $('#fb');
   fb.className = 'feedback ok';
   fb.innerHTML = `<div class="praise">${pick(PRAISE)} ${w.emoji}</div>` + (s.combo >= 3 ? `<div class="streak">🔥 ${s.combo}er-Serie! +${bonus} Bonus</div>` : '');
-  if (s.combo > 0 && s.combo % 5 === 0) { sfx.combo(); confetti(45); } else sfx.right();
+  if (s.combo > 0 && s.combo % 5 === 0) { sfx.combo(); confetti(45); buddyReact('party'); } else { sfx.right(); buddyReact('cheer'); }
 }
 
 function wrong(w, html, withButton = true, note = '') {
@@ -301,6 +302,7 @@ function wrong(w, html, withButton = true, note = '') {
   requeue(w);
   save();
   sfx.wrong();
+  buddyReact('sad');
   navigator.vibrate?.(120);
   const c = $('#combo'); if (c) { c.textContent = '🔥 0'; c.classList.remove('hot'); }
   const fb = $('#fb');
@@ -437,7 +439,7 @@ function renderCard() {
     st.r++;
     s.combo++; s.maxCombo = Math.max(s.maxCombo, s.combo);
     s.points += 2; S.points += 2;
-    save(); updateBar(); sfx.right();
+    save(); updateBar(); sfx.right(); buddyReact('cheer');
     next();
   };
   $('#again').onclick = () => {
@@ -472,6 +474,7 @@ function finish() {
   const earned = Math.min(STICKERS.length, Math.floor(S.stars / STARS_PER_STICKER));
   s.newStickers = [];
   while (S.stickers.length < earned) { const st = STICKERS[S.stickers.length]; S.stickers.push(st); s.newStickers.push(st); }
+  if (!S.buddy && s.newStickers.length) { S.buddy = s.newStickers[0]; s.newBuddy = S.buddy; }
   s.newCrowns = ROOMS.filter((r) => !S.crowns.includes(r.id) && poolFor(r.id).every(learned));
   s.newCrowns.forEach((r) => S.crowns.push(r.id));
 
@@ -499,7 +502,9 @@ function renderResult(celebrate) {
       ${r.learnedNew > 0 ? `<span>🧠 ${r.learnedNew} ganz gelernt</span>` : ''}
     </div>
     ${s.newStickers.length
-      ? `<div class="reward"><div class="reward-st">${s.newStickers.join(' ')}</div><b>Neuer Sticker!</b> Schau in dein Album.</div>`
+      ? `<div class="reward"><div class="reward-st">${s.newStickers.join(' ')}</div><b>Neuer Sticker!</b> ${s.newStickers.map((st) => `${st} heißt auf Englisch <b>${esc(stickerInfo(st)[1])}</b>`).join(', ')}.
+        ${s.newBuddy ? `<br>${s.newBuddy} ist ab jetzt dein <b>Begleiter</b> und feuert dich an!` : ''}
+        <a class="btn ghost" href="#/album">📒 Zum Album</a></div>`
       : !r.starRound ? `<p class="muted">${s.practice ? 'Übungsrunde' : 'Mini-Runde'}: Hier gibt es Punkte und Lernpunkte, aber keine Sterne. Sterne gibt es in normalen Runden.</p>`
       : allStickers ? '' : `<p class="muted">Noch ${STARS_PER_STICKER - (S.stars % STARS_PER_STICKER)} ⭐ bis zum nächsten Sticker</p>`}
     ${s.newCrowns.map((c) => `<div class="reward crown">👑 <b>${c.name} gemeistert!</b><br>Du kannst alle Wörter aus diesem Raum!</div>`).join('')}
@@ -512,7 +517,8 @@ function renderResult(celebrate) {
   </div>`;
   $('#again').onclick = () => startSession(s.target, s.mode);
   if (s.wrongWords.length) $('#practise').onclick = () => startSession(s.target, s.mode, s.wrongWords);
-  if (celebrate && (r.stars >= 2 || (!r.starRound && r.good === r.tot) || s.newStickers.length || s.newCrowns.length)) { confetti(); sfx.win(); }
+  if (celebrate && (r.stars >= 2 || (!r.starRound && r.good === r.tot) || s.newStickers.length || s.newCrowns.length)) { confetti(); sfx.win(); buddyReact('party', s.newBuddy ? 'Hallo! 👋' : undefined); }
+  if (celebrate && s.newStickers.length && S.speak) setTimeout(() => say(stickerInfo(s.newStickers[0])[1]), 900);
 }
 
 /* ---------- Seiten ---------- */
@@ -549,7 +555,8 @@ function renderHome() {
     <a class="big-card" href="#/room/all" style="--rc:#ff9f1c"><span>🎲</span><div><b>Alles gemischt</b><small>${WORDS.length} Wörter aus allen Räumen</small></div></a>
     ${hard ? `<a class="big-card" href="#/room/hard" style="--rc:#ef476f"><span>💪</span><div><b>Schwierige Wörter üben</b><small>${hard} ${hard === 1 ? 'Wort' : 'Wörter'}, die noch nicht sitzen</small></div></a>` : ''}
     <div class="row">
-      <a class="btn ghost" href="#/album">📒 Sticker-Album <span class="pill">${S.stickers.length}/${STICKERS.length}</span></a>
+      <a class="btn ghost" href="#/album">📒 Sticker <span class="pill">${S.stickers.length}/${STICKERS.length}</span></a>
+      <a class="btn ghost square" href="#/board" aria-label="Sticker-Bild">🎨</a>
       <a class="btn ghost square" href="#/settings" aria-label="Einstellungen">⚙️</a>
     </div>`;
 }
@@ -603,22 +610,6 @@ function renderList(target) {
       </div>`;
     }).join('')}</div>
     <a class="btn ghost" href="#/room/${target}">← Zurück</a>`;
-}
-
-function renderAlbum() {
-  app.innerHTML = `
-    <h1>📒 Sticker-Album</h1>
-    <p class="muted">Für je ${STARS_PER_STICKER} ⭐ bekommst du einen neuen Sticker. Du hast schon ${S.stars} ⭐ gesammelt!</p>
-    <div class="album">${STICKERS.map((st, i) => (i < S.stickers.length
-      ? `<div class="sticker">${st}</div>`
-      : `<div class="sticker locked"><span>?</span><small>${(i + 1) * STARS_PER_STICKER} ⭐</small></div>`)).join('')}</div>
-    <h2>Kronen 👑</h2>
-    <p class="muted">Lerne alle Wörter eines Raums, um seine Krone zu bekommen.</p>
-    <div class="crowns">${ROOMS.map((r) => {
-      const on = S.crowns.includes(r.id);
-      return `<div class="crown-item ${on ? 'on' : ''}" style="--rc:${r.color}"><span class="ce">${r.emoji}</span><small>${r.name}</small><span>${on ? '👑' : '🔒'}</span></div>`;
-    }).join('')}</div>
-    <a class="btn ghost" href="#/">← Zurück</a>`;
 }
 
 function voicePicker(lang) {
@@ -679,6 +670,7 @@ function route() {
     case 'room': return validTarget(arg) ? renderRoom(arg) : redirect('#/');
     case 'list': return validTarget(arg) ? renderList(arg) : redirect('#/');
     case 'album': return renderAlbum();
+    case 'board': return renderBoard();
     case 'settings': return renderSettings();
     case 'play':
       if (session) return session.finished ? renderResult(false) : renderSession();
@@ -690,6 +682,7 @@ function route() {
 document.addEventListener('click', (e) => {
   const sb = e.target.closest('[data-say]');
   if (sb) { say(sb.dataset.say, sb.dataset.lang || 'en'); return; }
+  if (e.target.closest('[data-buddy]') && S.buddy) { const en = stickerInfo(S.buddy)[1]; say(en); buddyReact('cheer', en); return; }
   if (e.target.closest('[data-quit]') && session && confirm('Runde wirklich abbrechen?')) {
     const t = session.target;
     session = null;

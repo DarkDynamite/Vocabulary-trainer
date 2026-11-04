@@ -2,7 +2,7 @@
 // nur ohne Internet aus dem Cache.
 // Version kommt aus app.js (sw.js?v=…); neue Version = neuer Cache.
 const CACHE = 'vokabeln-' + (new URL(location.href).searchParams.get('v') || 'dev');
-const ASSETS = ['./', 'index.html', 'style.css', 'app.js', 'vocab.js', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/apple-touch-icon.png'];
+const ASSETS = ['./', 'index.html', 'style.css', 'app.js', 'vocab.js', 'stickers.js', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
   // cache: 'reload' umgeht den Browser-Cache (GitHub Pages erlaubt sonst 10 Minuten alte Dateien)

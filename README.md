@@ -20,7 +20,9 @@ Jeder Modus geht pro Raum, über **🎲 Alles gemischt** (alle Räume) oder übe
 
 - 🏆 **Punkte** für jede richtige Antwort, mit Bonus für 🔥 Serien
 - ⭐ **1–3 Sterne** pro Runde, je nachdem wie viele Wörter beim ersten Versuch richtig waren
-- 📒 **Sticker-Album**: alle 5 Sterne gibt es einen neuen Tier-Sticker
+- 📒 **Sticker-Album**: alle 5 Sterne gibt es einen neuen Tier-Sticker. Antippen → er sagt seinen
+  englischen Namen. Einen Sticker als **Begleiter** wählen, der beim Üben mitjubelt, und im
+  🎨 **Sticker-Bild** eigene Bilder bekleben (verschieben, größer/kleiner, drehen)
 - 👑 **Kronen**: für jeden Raum, in dem alle Wörter gelernt sind
 - 🐣 **Level** mit Titeln (Vokabel-Küken → … → Legende)
 - 🔥 **Tage am Stück**, an denen geübt wurde
@@ -61,6 +63,7 @@ Alle Wörter stehen in [`vocab.js`](vocab.js). Ein neuer Raum ist einfach ein we
 Die aktuelle Version steht unten in den ⚙️ Einstellungen. Bei Änderungen `APP_VERSION` in `app.js` erhöhen –
 dadurch holen sich auch installierte Apps die neuen Dateien.
 
+- **1.5.0** – Sticker zum Spielen: im Album antippen → Sticker sagt seinen englischen Namen; Begleiter wählen, der beim Üben mitjubelt; 🎨 Sticker-Bild gestalten (Wiese, Meer, Weltraum, Zimmer)
 - **1.4.1** – Fehler aus dem Praxistest behoben: Quizfrage tauchte nach schnellem Verlassen auf anderen Seiten auf, Zurück-Taste blieb hängen, „Fehler üben“ verfälschte Sterne/Bestwert (Übungsrunden geben jetzt Punkte, aber keine Sterne), doppeltes Enter übersprang die Lösung, Buchstabenkästchen brachen mitten im Wort um, falsche Tage-Anzeige in den Einstellungen, kein Neuladen auf der Ergebnis-Seite, Lernkarten-Knöpfe waren schon vor dem Umdrehen sichtbar, Punkt am Wortende („bed.“) wird akzeptiert, Zurücksetzen löscht auch das letzte Rundenergebnis
 - **1.4.0** – Lernfortschritt sichtbar: Fortschrittsbalken zählt jeden Lernpunkt, „angefangen“-Anzeige, Lernkarten zählen mit (bis ●●○), Ergebnis zeigt „Wörter weitergekommen“
 - **1.3.2** – Lernkarten geben jetzt auch bis zu 3 Sterne (vorher immer nur 1)
