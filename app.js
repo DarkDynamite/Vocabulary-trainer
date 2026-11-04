@@ -1,7 +1,7 @@
 'use strict';
 
 // Bei jeder Änderung erhöhen – wird in den Einstellungen angezeigt und erneuert den Offline-Cache.
-const APP_VERSION = '1.3.0';
+const APP_VERSION = '1.3.1';
 const APP_DATE = '04.11.2026';
 
 /* ---------- Helfer ---------- */
@@ -622,7 +622,9 @@ function renderSettings() {
     </div>
     <button class="btn bad" id="resetBtn">Fortschritt zurücksetzen</button>
     <a class="btn primary" href="#/">✓ Fertig</a>
-    <p class="version">Vokabel-Trainer · Version ${APP_VERSION} · ${APP_DATE}</p>`;
+    <p class="version">Vokabel-Trainer · Version ${APP_VERSION} · ${APP_DATE}</p>
+    <button class="btn ghost" id="refreshBtn">🔄 Nach neuer Version suchen</button>`;
+  $('#refreshBtn').onclick = () => { $('#refreshBtn').textContent = '⏳ Lädt …'; hardRefresh(); };
   $('#nameIn').oninput = (e) => { S.name = e.target.value.trim(); save(); };
   $('#sndIn').onchange = (e) => { S.sound = e.target.checked; save(); };
   $('#spkIn').onchange = (e) => { S.speak = e.target.checked; save(); };
@@ -685,6 +687,48 @@ document.addEventListener('touchstart', () => {}, { passive: true }); // aktivie
 updateBar();
 route();
 
+/* ---------- Updates ---------- */
+const inRound = () => location.hash === '#/play' && session && !session.finished;
+function showUpdateBanner() {
+  if ($('#updateBanner')) return;
+  const d = document.createElement('button');
+  d.id = 'updateBanner';
+  d.className = 'update-banner';
+  d.innerHTML = '✨ Neue Version da – <b>nach der Runde</b> oder hier tippen zum Laden';
+  d.onclick = () => location.reload();
+  document.body.appendChild(d);
+}
+let updatePending = false;
+let lastCheck = 0;
+// Fragt beim Server nach der aktuellen Versionsnummer (in app.js) und lädt bei Bedarf neu
+async function checkVersion() {
+  if (Date.now() - lastCheck < 30000) return;
+  lastCheck = Date.now();
+  try {
+    const txt = await (await fetch('app.js', { cache: 'no-store' })).text();
+    const remote = txt.match(/APP_VERSION = '([\d.]+)'/)?.[1];
+    if (!remote || remote === APP_VERSION) return;
+    if (inRound()) { updatePending = true; showUpdateBanner(); } else location.reload();
+  } catch { /* offline */ }
+}
+async function hardRefresh() {
+  try {
+    const regs = await navigator.serviceWorker?.getRegistrations?.() || [];
+    await Promise.all(regs.map((r) => r.update().catch(() => {})));
+    if (window.caches) await Promise.all((await caches.keys()).map((k) => caches.delete(k)));
+  } catch { /* egal */ }
+  location.reload();
+}
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  navigator.serviceWorker.register('sw.js?v=' + APP_VERSION).catch(() => {});
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('sw.js?v=' + APP_VERSION).then((reg) => {
+    // Auch wenn die App vom Home-Bildschirm nur "aufgeweckt" wird, nach Updates schauen
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { reg.update().catch(() => {}); checkVersion(); } });
+  }).catch(() => {});
+  // Neue Version hat übernommen → Seite neu laden (aber keine laufende Runde abbrechen)
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController) return; // allererster Besuch: nichts zu tun
+    if (inRound()) { updatePending = true; showUpdateBanner(); } else location.reload();
+  });
+  window.addEventListener('hashchange', () => { if (updatePending && !inRound()) location.reload(); });
 }
