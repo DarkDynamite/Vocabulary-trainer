@@ -26,7 +26,8 @@ Jeder Modus geht pro Raum, über **🎲 Alles gemischt** (alle Räume) oder übe
 - 🔥 **Tage am Stück**, an denen geübt wurde
 - Konfetti, Töne und viel Lob 🎉
 
-Ein Wort gilt als **gelernt**, wenn es 3× hintereinander richtig beantwortet wurde. Falsche Wörter
+Ein Wort gilt als **gelernt**, wenn es 3× hintereinander richtig beantwortet wurde (●●●). Lernkarten
+bringen ein Wort bis ●●○, den letzten Punkt gibt es im Quiz oder beim Schreiben. Falsche Wörter
 kommen in derselben Runde nochmal dran und werden später bevorzugt abgefragt.
 
 Der Fortschritt wird nur lokal im Browser des Handys gespeichert (`localStorage`).
@@ -60,6 +61,7 @@ Alle Wörter stehen in [`vocab.js`](vocab.js). Ein neuer Raum ist einfach ein we
 Die aktuelle Version steht unten in den ⚙️ Einstellungen. Bei Änderungen `APP_VERSION` in `app.js` erhöhen –
 dadurch holen sich auch installierte Apps die neuen Dateien.
 
+- **1.4.0** – Lernfortschritt sichtbar: Fortschrittsbalken zählt jeden Lernpunkt, „angefangen“-Anzeige, Lernkarten zählen mit (bis ●●○), Ergebnis zeigt „Wörter weitergekommen“
 - **1.3.2** – Lernkarten geben jetzt auch bis zu 3 Sterne (vorher immer nur 1)
 - **1.3.1** – Updates kommen zuverlässig an (kein veralteter Zwischenspeicher mehr), Knopf „Nach neuer Version suchen“
 - **1.3.0** – Versionsnummer in den Einstellungen

@@ -1,7 +1,7 @@
 'use strict';
 
 // Bei jeder Änderung erhöhen – wird in den Einstellungen angezeigt und erneuert den Offline-Cache.
-const APP_VERSION = '1.3.2';
+const APP_VERSION = '1.4.0';
 const APP_DATE = '04.11.2026';
 
 /* ---------- Helfer ---------- */
@@ -55,6 +55,8 @@ let S = load();
 
 const stat = (w) => (S.words[w.id] ||= { c: 0, r: 0, w: 0 });
 const learned = (w) => (S.words[w.id]?.c || 0) >= MASTER;
+const level3 = (w) => Math.min(S.words[w.id]?.c || 0, MASTER);          // 0..3 Lernpunkte eines Worts
+const progressOf = (ws) => ws.reduce((a, w) => a + level3(w), 0) / (ws.length * MASTER); // 0..1
 
 const dayStr = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const yesterday = () => { const d = new Date(); d.setDate(d.getDate() - 1); return dayStr(d); };
@@ -228,6 +230,7 @@ function startSession(target, mode, words) {
     queue: list.map((w) => ({ w, dir: dirFor(mode) })),
     i: 0, first: {}, points: 0, combo: 0, maxCombo: 0, retries: {},
     learnedBefore: WORDS.filter(learned).length,
+    levelsBefore: Object.fromEntries(list.map((w) => [w.id, level3(w)])),
   };
   go('#/play');
 }
@@ -417,6 +420,10 @@ function renderCard() {
   };
   $('#knew').onclick = () => {
     if (!(w.id in s.first)) s.first[w.id] = true;
+    // Lernkarten bringen ein Wort bis ●●○ – den letzten Punkt gibt es im Quiz oder beim Schreiben
+    const st = stat(w);
+    if (st.c < MASTER - 1) st.c++;
+    st.r++;
     s.combo++; s.maxCombo = Math.max(s.maxCombo, s.combo);
     s.points += 2; S.points += 2;
     save(); updateBar(); sfx.right();
@@ -424,6 +431,9 @@ function renderCard() {
   };
   $('#again').onclick = () => {
     if (!(w.id in s.first)) s.first[w.id] = false;
+    const st = stat(w);
+    st.c = 0; st.w++;
+    save();
     s.combo = 0;
     requeue(w);
     next();
@@ -452,7 +462,8 @@ function finish() {
   s.newCrowns = ROOMS.filter((r) => !S.crowns.includes(r.id) && poolFor(r.id).every(learned));
   s.newCrowns.forEach((r) => S.crowns.push(r.id));
 
-  s.result = { good, tot, stars, learnedNew: WORDS.filter(learned).length - s.learnedBefore };
+  s.result = { good, tot, stars, learnedNew: WORDS.filter(learned).length - s.learnedBefore,
+    improved: Object.keys(s.levelsBefore).filter((id) => level3({ id }) > s.levelsBefore[id]).length };
   s.wrongWords = ids.filter((id) => !s.first[id]).map((id) => WORDS.find((w) => w.id === id));
   save(); updateBar();
   renderResult(true);
@@ -470,7 +481,8 @@ function renderResult(celebrate) {
     <div class="chips">
       <span>🏆 +${s.points} Punkte</span>
       <span>🔥 Beste Serie: ${s.maxCombo}</span>
-      ${r.learnedNew > 0 ? `<span>🧠 ${r.learnedNew} neu gelernt</span>` : ''}
+      ${r.improved > 0 ? `<span>📈 ${r.improved} ${r.improved === 1 ? 'Wort' : 'Wörter'} weitergekommen</span>` : ''}
+      ${r.learnedNew > 0 ? `<span>🧠 ${r.learnedNew} ganz gelernt</span>` : ''}
     </div>
     ${s.newStickers.length
       ? `<div class="reward"><div class="reward-st">${s.newStickers.join(' ')}</div><b>Neuer Sticker!</b> Schau in dein Album.</div>`
@@ -492,12 +504,14 @@ function renderResult(celebrate) {
 function roomCard(r) {
   const ws = poolFor(r.id);
   const n = ws.filter(learned).length;
+  const started = ws.filter((w) => level3(w) > 0 && !learned(w)).length;
   return `<a class="room" href="#/room/${r.id}" style="--rc:${r.color}">
     <span class="room-emoji">${r.emoji}</span>
     <b>${r.name}</b>
     <small class="en">${r.title}</small>
-    <div class="bar"><div style="width:${(n / ws.length) * 100}%"></div></div>
+    <div class="bar"><div style="width:${progressOf(ws) * 100}%"></div></div>
     <small>${n === ws.length ? '👑 Gemeistert!' : `${n}/${ws.length} gelernt`}</small>
+    ${started && n < ws.length ? `<small class="started">${started} angefangen</small>` : ''}
   </a>`;
 }
 
@@ -550,6 +564,7 @@ function renderRoom(target) {
         ${target === 'hard' ? '' : `<span class="best" aria-label="${b} Sterne">${'★'.repeat(b)}<i>${'★'.repeat(3 - b)}</i></span>`}
       </button>`;
     }).join('')}</div>
+    <p class="muted hint">💡 Ein Wort ist <b>gelernt</b>, wenn du es ${MASTER}× hintereinander richtig hattest. Wie weit du bei jedem Wort bist, zeigt die Wörterliste.</p>
     <a class="btn ghost" href="#/list/${target}">📋 Wörterliste ansehen</a>
     <a class="btn ghost" href="#/">← Zurück</a>`;
   app.querySelectorAll('[data-start]').forEach((b) => (b.onclick = () => startSession(target, b.dataset.start)));
@@ -561,7 +576,8 @@ function renderList(target) {
   if (!info || !pool.length) return go('#/');
   app.innerHTML = `
     <h1>${info.emoji} ${info.name}</h1>
-    <p class="muted">●●● = gelernt (${MASTER}× hintereinander richtig)</p>
+    <p class="muted">Jede richtige Antwort gibt einen Punkt ●. Bei ●●● (${MASTER}× hintereinander richtig) ist das Wort gelernt.
+      Lernkarten bringen dich bis ●●○ – den letzten Punkt holst du im Quiz oder beim Schreiben. Ein Fehler setzt das Wort auf ○○○ zurück.</p>
     <div class="wlist">${pool.map((w) => {
       const c = Math.min(S.words[w.id]?.c || 0, MASTER);
       return `<div class="wl ${c >= MASTER ? 'ok' : ''}">
@@ -643,6 +659,7 @@ function route() {
   const [, page = '', arg] = (location.hash || '#/').split('/');
   if (canSpeak) speechSynthesis.cancel();
   if (page !== 'play') window.scrollTo(0, 0);
+  if (page !== 'play') document.querySelectorAll('.confetti, .pop').forEach((el) => el.remove());
   switch (page) {
     case 'room': return validTarget(arg) ? renderRoom(arg) : go('#/');
     case 'list': return validTarget(arg) ? renderList(arg) : go('#/');
