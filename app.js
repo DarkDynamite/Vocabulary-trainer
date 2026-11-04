@@ -1,7 +1,7 @@
 'use strict';
 
 // Bei jeder Änderung erhöhen – wird in den Einstellungen angezeigt und erneuert den Offline-Cache.
-const APP_VERSION = '1.5.0';
+const APP_VERSION = '1.5.1';
 const APP_DATE = '04.11.2026';
 
 /* ---------- Helfer ---------- */
@@ -692,22 +692,41 @@ document.addEventListener('click', (e) => {
 });
 window.addEventListener('hashchange', route);
 
-/* Touch-Feedback: Elemente sichtbar "eindrücken", auch auf iOS/Android */
+/* Touch-Feedback: Elemente sichtbar "eindrücken" – aber nicht beim Scrollen.
+   Wie bei nativen Apps: erst eindrücken, wenn der Finger kurz ruhig bleibt oder wirklich tippt;
+   bewegt er sich (Scrollen), wird abgebrochen. Vibration nur bei einem echten Tippen (click). */
 const PRESSABLE = 'button, a, .flip, .toggle';
-let pressedEl = null, pressedAt = 0;
+const PRESS_DELAY = 150;  // ms (wie iOS) bis zum Eindrücken, solange der Finger stillhält
+const MOVE_CANCEL = 10;   // px Bewegung = Scrollen → kein Eindrücken
+let pressedEl = null, pressedAt = 0, pending = null, lastPointer = 'mouse';
+function press(el) { release(pressedEl); pressedEl = el; pressedAt = Date.now(); el.classList.add('pressed'); }
 function release(el) { if (el) el.classList.remove('pressed'); if (pressedEl === el) pressedEl = null; }
+function cancelPress() {
+  if (pending) { clearTimeout(pending.timer); pending = null; }
+  release(pressedEl);
+}
 document.addEventListener('pointerdown', (e) => {
+  lastPointer = e.pointerType;
   const el = e.target.closest(PRESSABLE);
   if (!el || el.disabled) return;
-  release(pressedEl);
-  pressedEl = el; pressedAt = Date.now();
-  el.classList.add('pressed');
-  if (e.pointerType === 'touch' && S.sound) navigator.vibrate?.(8);
+  cancelPress();
+  if (e.pointerType === 'mouse') { press(el); return; }
+  pending = { el, x: e.clientX, y: e.clientY, timer: setTimeout(() => { if (pending?.el === el) press(el); }, PRESS_DELAY) };
 }, { passive: true });
-const endPress = () => { const el = pressedEl; setTimeout(() => release(el), Math.max(0, 130 - (Date.now() - pressedAt))); };
-document.addEventListener('pointerup', endPress, { passive: true });
-document.addEventListener('pointercancel', endPress, { passive: true });
-document.addEventListener('touchstart', () => {}, { passive: true }); // aktiviert :active in iOS Safari
+document.addEventListener('pointermove', (e) => {
+  if (pending && Math.hypot(e.clientX - pending.x, e.clientY - pending.y) > MOVE_CANCEL) cancelPress();
+}, { passive: true });
+document.addEventListener('pointerup', () => {
+  // schneller Tipp: kurz eindrücken, damit man das Antippen sieht
+  if (pending) { const el = pending.el; clearTimeout(pending.timer); pending = null; if (!pressedEl) press(el); }
+  const el = pressedEl;
+  setTimeout(() => release(el), Math.max(0, 130 - (Date.now() - pressedAt)));
+}, { passive: true });
+document.addEventListener('pointercancel', cancelPress, { passive: true }); // Browser hat Scrollen übernommen
+window.addEventListener('scroll', () => { if (pending || pressedEl) cancelPress(); }, { passive: true, capture: true });
+document.addEventListener('click', (e) => {
+  if (lastPointer === 'touch' && S.sound && e.target.closest(PRESSABLE)) navigator.vibrate?.(8);
+}, true);
 
 
 updateBar();
