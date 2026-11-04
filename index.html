@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#4d96ff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Vokabeln">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>Vokabel-Trainer</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a href="#/" class="logo" aria-label="Startseite">🏠 <span>Vokabeln</span></a>
+    <div class="stats">
+      <span title="Punkte">🏆 <b id="barPoints">0</b></span>
+      <span title="Sterne">⭐ <b id="barStars">0</b></span>
+      <span title="Tage am Stück">🔥 <b id="barStreak">0</b></span>
+    </div>
+  </header>
+  <main id="app"></main>
+  <script src="vocab.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
