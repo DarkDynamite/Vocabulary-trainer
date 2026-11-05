@@ -1,7 +1,7 @@
 'use strict';
 
 // Bei jeder Änderung erhöhen – wird in den Einstellungen angezeigt und erneuert den Offline-Cache.
-const APP_VERSION = '1.6.0';
+const APP_VERSION = '1.7.0';
 const APP_DATE = '04.11.2026';
 
 /* ---------- Helfer ---------- */
@@ -51,13 +51,16 @@ const PRAISE = ['Super!', 'Klasse!', 'Toll!', 'Genau!', 'Spitze!', 'Wow!', 'Perf
 
 /* ---------- Speicher ---------- */
 const STORE = 'vokabeltrainer-v1';
-const defaults = () => ({ name: '', points: 0, stars: 0, rounds: 0, words: {}, day: { last: null, count: 0 }, stickers: [], crowns: [], best: {}, sound: true, speak: true, voices: {}, gender: 'n', buddy: null, board: { bg: 'meadow', items: [] } });
+const defaults = () => ({ name: '', points: 0, stars: 0, rounds: 0, words: {}, day: { last: null, count: 0 }, stickers: [], crowns: [], best: {}, sound: true, speak: true, voices: {}, gender: 'n', buddy: null, pages: [{ bg: 'meadow', items: [] }], page: 0 });
 function load() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORE) || 'null');
     if (!saved) return defaults();
     // Wer schon vor dieser Einstellung gespielt hat, kannte die weiblichen Titel → so lassen
     if (!('gender' in saved)) saved.gender = 'f';
+    // Früher gab es nur ein Sticker-Bild → wird Seite 1 im Stickeralbum
+    if (saved.board && !saved.pages) { saved.pages = [saved.board]; saved.page = 0; }
+    delete saved.board;
     return { ...defaults(), ...saved };
   } catch { return defaults(); }
 }
@@ -515,7 +518,7 @@ function renderResult(celebrate) {
     ${s.newStickers.length
       ? `<div class="reward"><div class="reward-st">${s.newStickers.join(' ')}</div><b>Neuer Sticker!</b> ${s.newStickers.map((st) => `${st} heißt auf Englisch <b>${esc(stickerInfo(st)[1])}</b>`).join(', ')}.
         ${s.newBuddy ? `<br>${s.newBuddy} ist ab jetzt dein <b>Begleiter</b> und feuert dich an!` : ''}
-        <a class="btn ghost" href="#/album">📒 Zum Album</a></div>`
+        <a class="btn ghost" href="#/album">📒 Meine Sticker</a></div>`
       : !r.starRound ? `<p class="muted">${s.practice ? 'Übungsrunde' : 'Mini-Runde'}: Hier gibt es Punkte und Lernpunkte, aber keine Sterne. Sterne gibt es in normalen Runden.</p>`
       : allStickers ? '' : `<p class="muted">Noch ${STARS_PER_STICKER - (S.stars % STARS_PER_STICKER)} ⭐ bis zum nächsten Sticker</p>`}
     ${s.newCrowns.map((c) => `<div class="reward crown">👑 <b>${c.name} gemeistert!</b><br>Du kannst alle Wörter aus diesem Raum!</div>`).join('')}
@@ -567,7 +570,7 @@ function renderHome() {
     ${hard ? `<a class="big-card" href="#/room/hard" style="--rc:#ef476f"><span>💪</span><div><b>Schwierige Wörter üben</b><small>${hard} ${hard === 1 ? 'Wort' : 'Wörter'}, die noch nicht sitzen</small></div></a>` : ''}
     <div class="row">
       <a class="btn ghost" href="#/album">📒 Sticker <span class="pill">${S.stickers.length}/${STICKERS.length}</span></a>
-      <a class="btn ghost square" href="#/board" aria-label="Sticker-Bild">🎨</a>
+      <a class="btn ghost square" href="#/board" aria-label="Stickeralbum">📖</a>
       <a class="btn ghost square" href="#/settings" aria-label="Einstellungen">⚙️</a>
     </div>`;
 }
@@ -691,6 +694,7 @@ function route() {
     case 'list': return validTarget(arg) ? renderList(arg) : redirect('#/');
     case 'album': return renderAlbum();
     case 'board': return renderBoard();
+    case 'stickeralbum': return redirect('#/board');
     case 'settings': return renderSettings();
     case 'play':
       if (session) return session.finished ? renderResult(false) : renderSession();

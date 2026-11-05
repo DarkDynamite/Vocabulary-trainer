@@ -22,7 +22,7 @@ Jeder Modus geht pro Raum, über **🎲 Alles gemischt** (alle Räume) oder übe
 - ⭐ **1–3 Sterne** pro Runde, je nachdem wie viele Wörter beim ersten Versuch richtig waren
 - 📒 **Sticker-Album**: alle 5 Sterne gibt es einen neuen Tier-Sticker. Antippen → er sagt seinen
   englischen Namen. Einen Sticker als **Begleiter** wählen, der beim Üben mitjubelt, und im
-  🎨 **Sticker-Bild** eigene Bilder bekleben (verschieben, größer/kleiner, drehen)
+  📖 **Stickeralbum** Seite für Seite bekleben (verschieben, größer/kleiner, drehen, blättern)
 - 👑 **Kronen**: für jeden Raum, in dem alle Wörter gelernt sind
 - 🐣 **Level** mit Titeln (Vokabel-Küken → … → Legende) – in den Einstellungen wählbar für Mädchen,
   Junge oder neutral
@@ -64,6 +64,7 @@ Alle Wörter stehen in [`vocab.js`](vocab.js). Ein neuer Raum ist einfach ein we
 Die aktuelle Version steht unten in den ⚙️ Einstellungen. Bei Änderungen `APP_VERSION` in `app.js` erhöhen –
 dadurch holen sich auch installierte Apps die neuen Dateien.
 
+- **1.7.0** – 📖 Stickeralbum mit mehreren Seiten statt einem einzelnen Bild: blättern (◀ ▶ oder wischen), neue Seiten anlegen, Seitenübersicht; das bisherige Bild wird Seite 1. Die Sammlung heißt jetzt „📒 Meine Sticker“
 - **1.6.0** – Einstellung „Titel für“: Mädchen, Junge oder neutral (z. B. Wort-Zauberin / Wort-Zauberer / Zauber-Talent)
 - **1.5.1** – Beim Scrollen werden Knöpfe nicht mehr eingedrückt und es vibriert nicht mehr (nur noch bei echtem Antippen)
 - **1.5.0** – Sticker zum Spielen: im Album antippen → Sticker sagt seinen englischen Namen; Begleiter wählen, der beim Üben mitjubelt; 🎨 Sticker-Bild gestalten (Wiese, Meer, Weltraum, Zimmer)

@@ -1,5 +1,5 @@
 'use strict';
-/* Alles rund um Sticker: Namen (Englisch/Deutsch), Album-Details, Begleiter und Sticker-Bild.
+/* Alles rund um Sticker: Namen (Englisch/Deutsch), Sammlung, Begleiter und Stickeralbum mit Seiten.
    Wird vor app.js geladen; die Funktionen nutzen zur Laufzeit S, save, say, esc, app usw. aus app.js. */
 
 // [Emoji, Englisch, Deutsch] – Reihenfolge = Reihenfolge, in der sie freigeschaltet werden
@@ -53,11 +53,11 @@ function buddyReact(kind, text) {
 function renderAlbum() {
   const have = S.stickers.length;
   app.innerHTML = `
-    <h1>📒 Sticker-Album</h1>
+    <h1>📒 Meine Sticker</h1>
     <p class="muted">Für je ${STARS_PER_STICKER} ⭐ bekommst du einen neuen Sticker. Du hast schon ${S.stars} ⭐ gesammelt!
       ${have ? 'Tippe auf einen Sticker – er sagt dir, wie er auf Englisch heißt.' : ''}</p>
     <div class="st-detail" id="stDetail" hidden></div>
-    ${have ? `<a class="btn primary" href="#/board">🎨 Sticker-Bild gestalten</a>` : ''}
+    ${have ? `<a class="btn primary" href="#/board">📖 Ins Stickeralbum kleben</a>` : ''}
     <div class="album">${STICKERS.map((st, i) => (i < have
       ? `<button class="sticker ${S.buddy === st ? 'is-buddy' : ''}" data-st="${st}" aria-label="${esc(stickerInfo(st)[2])}">${st}</button>`
       : `<button class="sticker locked" data-locked="${i}"><span>?</span><small>${(i + 1) * STARS_PER_STICKER} ⭐</small></button>`)).join('')}</div>
@@ -101,27 +101,48 @@ function showSticker(st, tile) {
   };
 }
 
-/* ---------- Sticker-Bild ---------- */
+/* ---------- Stickeralbum (mehrere Seiten zum Bekleben) ---------- */
 const BOARD_BGS = [
   ['meadow', '🌳', 'Wiese'], ['sea', '🌊', 'Meer'], ['space', '🚀', 'Weltraum'], ['room', '🛋️', 'Zimmer'],
 ];
 const MAX_BOARD_ITEMS = 80;
+const MAX_PAGES = 30;
 let boardSel = -1;
 
-function renderBoard() {
-  S.board ||= { bg: 'meadow', items: [] };
-  const B = S.board;
+function albumPages() {
+  if (!Array.isArray(S.pages) || !S.pages.length) S.pages = [{ bg: 'meadow', items: [] }];
+  S.page = Math.max(0, Math.min(S.pages.length - 1, S.page | 0));
+  return S.pages;
+}
+const curPage = () => albumPages()[S.page];
+const itemsHTML = (items, sel = -1) => items.map((it, i) => `<div class="bitem ${i === sel ? 'sel' : ''}" data-i="${i}"
+    style="left:${it.x}%;top:${it.y}%;font-size:${it.s}em;--r:${it.r}deg">${it.e}</div>`).join('');
+
+function goPage(i, dir) {
+  if (i < 0 || i >= albumPages().length || i === S.page) return;
+  S.page = i; save();
+  renderBoard(dir ?? 0);
+}
+
+function renderBoard(flip = 0) {
   if (!S.stickers.length) {
-    app.innerHTML = `<h1>🎨 Sticker-Bild</h1>
+    app.innerHTML = `<h1>📖 Mein Stickeralbum</h1>
       <p class="muted">Du hast noch keine Sticker. Für je ${STARS_PER_STICKER} ⭐ gibt es einen – spiel ein paar Runden!</p>
       <a class="btn primary" href="#/">Los geht's!</a>`;
     return;
   }
+  const pages = albumPages();
+  const B = curPage();
   boardSel = -1;
   app.innerHTML = `
-    <h1>🎨 Sticker-Bild</h1>
+    <h1>📖 Mein Stickeralbum</h1>
+    <div class="album-nav">
+      <button class="icon-btn" id="prevPage" aria-label="Vorherige Seite" ${S.page === 0 ? 'disabled' : ''}>◀</button>
+      <div class="page-label">Seite <b>${S.page + 1}</b> von ${pages.length}</div>
+      <button class="icon-btn" id="nextPage" aria-label="Nächste Seite" ${S.page === pages.length - 1 ? 'disabled' : ''}>▶</button>
+    </div>
     <div class="bg-pick">${BOARD_BGS.map(([id, ic, name]) => `<button class="chip ${B.bg === id ? 'on' : ''}" data-bg="${id}"><span>${ic}</span>${name}</button>`).join('')}</div>
-    <div class="board bg-${B.bg}" id="board"></div>
+    <div class="board bg-${B.bg} ${flip > 0 ? 'turn-next' : flip < 0 ? 'turn-prev' : ''}" id="board"></div>
     <div class="board-tools" id="tools">
       <button class="btn ghost" data-tool="smaller" aria-label="Kleiner">➖</button>
       <button class="btn ghost" data-tool="bigger" aria-label="Größer">➕</button>
@@ -131,23 +152,49 @@ function renderBoard() {
     </div>
     <p class="muted board-help" id="boardHelp"></p>
     <div class="tray">${S.stickers.map((st) => `<button data-add="${st}" aria-label="${esc(stickerInfo(st)[2])} einkleben">${st}</button>`).join('')}</div>
+    <h2>Alle Seiten</h2>
+    <div class="pages-strip" id="pagesStrip">
+      ${pages.map((pg, i) => `<button class="thumb ${i === S.page ? 'on' : ''}" data-page="${i}" aria-label="Seite ${i + 1}">
+        <span class="thumb-board bg-${pg.bg}">${itemsHTML(pg.items)}</span><small>${i + 1}</small></button>`).join('')}
+      ${pages.length < MAX_PAGES ? `<button class="thumb add" id="addPage" aria-label="Neue Seite"><span class="thumb-board">＋</span><small>Neue Seite</small></button>` : ''}
+    </div>
     <div class="row">
-      <button class="btn ghost" id="clearBoard">🧹 Alles ablösen</button>
-      <a class="btn ghost" href="#/album">← Album</a>
+      <button class="btn ghost" id="delPage">🗑️ Seite löschen</button>
+      <a class="btn ghost" href="#/album">📒 Meine Sticker</a>
     </div>`;
   const board = $('#board');
   const fit = () => { board.style.fontSize = board.clientWidth / 7 + 'px'; };
   fit();
   window.onresize = () => { if ($('#board')) fit(); };
   drawBoard();
+  $('#pagesStrip .thumb.on')?.scrollIntoView({ block: 'nearest', inline: 'center' });
+
+  $('#prevPage').onclick = () => goPage(S.page - 1, -1);
+  $('#nextPage').onclick = () => goPage(S.page + 1, 1);
+  app.querySelectorAll('[data-page]').forEach((b) => (b.onclick = () => goPage(Number(b.dataset.page), Math.sign(Number(b.dataset.page) - S.page))));
+  if ($('#addPage')) $('#addPage').onclick = () => {
+    const bg = BOARD_BGS[pages.length % BOARD_BGS.length][0]; // jede neue Seite mit anderem Hintergrund
+    pages.push({ bg, items: [] });
+    S.page = pages.length - 1; save(); sfx.right();
+    renderBoard(1);
+  };
+  $('#delPage').onclick = () => {
+    const msg = pages.length > 1
+      ? `Seite ${S.page + 1} wirklich löschen?${B.items.length ? ' Die Sticker darauf werden abgelöst.' : ''} (Deine Sticker-Sammlung bleibt.)`
+      : 'Alle Sticker von dieser Seite ablösen? (Deine Sticker-Sammlung bleibt.)';
+    if (!confirm(msg)) return;
+    if (pages.length > 1) { pages.splice(S.page, 1); S.page = Math.max(0, S.page - 1); } else B.items = [];
+    save(); renderBoard();
+  };
 
   app.querySelectorAll('[data-bg]').forEach((b) => (b.onclick = () => {
     B.bg = b.dataset.bg; save();
     board.className = 'board bg-' + B.bg;
     app.querySelectorAll('[data-bg]').forEach((x) => x.classList.toggle('on', x === b));
+    updateThumb();
   }));
   app.querySelectorAll('[data-add]').forEach((b) => (b.onclick = () => {
-    if (B.items.length >= MAX_BOARD_ITEMS) { buddyBubble('Das Bild ist voll!'); return; }
+    if (B.items.length >= MAX_BOARD_ITEMS) { buddyBubble('Die Seite ist voll! Mach eine neue Seite.'); return; }
     const jitter = () => 50 + (Math.random() * 30 - 15);
     B.items.push({ e: b.dataset.add, x: jitter(), y: jitter(), s: 1, r: 0 });
     boardSel = B.items.length - 1;
@@ -165,21 +212,18 @@ function renderBoard() {
     if (t === 'delete') { B.items.splice(boardSel, 1); boardSel = -1; }
     save(); drawBoard();
   }));
-  $('#clearBoard').onclick = () => {
-    if (B.items.length && confirm('Alle Sticker vom Bild ablösen? (Deine Sticker im Album bleiben.)')) { B.items = []; boardSel = -1; save(); drawBoard(); }
-  };
 
-  // Verschieben mit dem Finger
-  let drag = null;
+  // Sticker mit dem Finger verschieben – oder auf freier Fläche wischen zum Blättern
+  let drag = null, swipe = null;
   board.onpointerdown = (e) => {
     const el = e.target.closest('.bitem');
-    if (!el) { boardSel = -1; drawBoard(); return; }
+    board.setPointerCapture(e.pointerId);
+    e.preventDefault();
+    if (!el) { swipe = { x: e.clientX, y: e.clientY }; return; }
     const i = Number(el.dataset.i);
     const r = el.getBoundingClientRect();
     drag = { i, el, dx: r.left + r.width / 2 - e.clientX, dy: r.top + r.height / 2 - e.clientY, sx: e.clientX, sy: e.clientY, moved: false };
-    board.setPointerCapture(e.pointerId);
     if (boardSel !== i) { boardSel = i; drawBoard(); drag.el = board.querySelector(`[data-i="${i}"]`); }
-    e.preventDefault();
   };
   board.onpointermove = (e) => {
     if (!drag) return;
@@ -192,7 +236,15 @@ function renderBoard() {
     drag.el.style.left = it.x + '%';
     drag.el.style.top = it.y + '%';
   };
-  const end = () => {
+  const end = (e) => {
+    if (swipe) {
+      const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y;
+      swipe = null;
+      if (e.type === 'pointerup' && Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+        goPage(S.page + (dx < 0 ? 1 : -1), dx < 0 ? 1 : -1);
+      } else if (boardSel !== -1) { boardSel = -1; drawBoard(); }
+      return;
+    }
     if (!drag) return;
     const it = B.items[drag.i];
     if (!drag.moved && it) { // nur angetippt → Sticker sagt seinen Namen
@@ -200,21 +252,26 @@ function renderBoard() {
       drag.el.classList.remove('hop'); void drag.el.offsetWidth; drag.el.classList.add('hop');
     }
     drag = null;
-    save();
+    save(); updateThumb();
   };
   board.onpointerup = end;
   board.onpointercancel = end;
 }
 
+function updateThumb() {
+  const t = document.querySelector(`.thumb[data-page="${S.page}"] .thumb-board`);
+  if (t) { t.className = 'thumb-board bg-' + curPage().bg; t.innerHTML = itemsHTML(curPage().items); }
+}
+
 function drawBoard() {
   const board = $('#board');
   if (!board) return;
-  const B = S.board;
-  board.innerHTML = B.items.map((it, i) => `<div class="bitem ${i === boardSel ? 'sel' : ''}" data-i="${i}"
-    style="left:${it.x}%;top:${it.y}%;font-size:${it.s}em;--r:${it.r}deg">${it.e}</div>`).join('')
-    || '<div class="board-empty">Tippe unten auf einen Sticker,<br>um ihn hier einzukleben 👇</div>';
+  const B = curPage();
+  board.innerHTML = itemsHTML(B.items, boardSel)
+    || `<div class="board-empty">Tippe unten auf einen Sticker,<br>um ihn hier einzukleben 👇${albumPages().length > 1 ? '<br><small>Wischen ↔ blättert um</small>' : ''}</div>`;
   $('#tools').classList.toggle('active', boardSel >= 0);
   $('#boardHelp').textContent = boardSel >= 0
     ? 'Ziehe den Sticker mit dem Finger. Mit den Knöpfen unter dem Bild: kleiner, größer, drehen, nach vorne oder entfernen.'
-    : B.items.length ? 'Tippe einen Sticker im Bild an, um ihn zu verschieben oder zu ändern.' : '';
+    : B.items.length ? 'Tippe einen Sticker an, um ihn zu verschieben oder zu ändern. Auf freier Fläche wischen blättert um.' : '';
+  updateThumb();
 }
